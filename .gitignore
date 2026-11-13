@@ -1,0 +1,16 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.zip
+*.log
+mozc-logs/
+preview.png
+third_party/
+
+ipc_path_manager.cc
+mozc-client.cc
+mozc_server.cc
+server_launcher.cc
+win32_ipc.cc
