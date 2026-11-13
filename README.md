@@ -57,7 +57,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 
 ## Mozc 转换引擎
 
-仓库包含运行所必需的 `mozc_server.exe` 和 MSVC 运行库，不包含 Mozc 源码、Qt UI、安装包或构建产物。
+仓库包含运行所必需的 `mozc_server.exe` 和 MSVC 运行库，不包含 Qt UI、安装包或构建产物。
 
 独立检查转换引擎：
 
@@ -72,6 +72,22 @@ ochitsuiteiru:
 1. 落ち着いている
 ...
 ```
+
+### 可选：从源码构建 Mozc
+
+`third_party/mozc` 是 [Google Mozc](https://github.com/google/mozc) 的 submodule，固定在已知可用的 commit：
+
+```bash
+git submodule update --init third_party/mozc
+```
+
+本地构建补丁位于 `patches/`。其中的 `mozc-server-allow-elevated.patch` 删除 4 行高权限启动保护，用于在管理员终端环境中启动 Mozc server：
+
+```bash
+git -C third_party/mozc apply ../../patches/mozc-server-allow-elevated.patch
+```
+
+只有自行编译 `mozc_server.exe` 时才需要 submodule 和补丁；运行已随附引擎不需要这些步骤。
 
 ## 项目结构
 
