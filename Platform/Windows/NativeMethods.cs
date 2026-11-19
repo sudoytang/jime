@@ -12,6 +12,7 @@ internal static class NativeMethods
     internal const uint KeyeventfKeyup = 0x0002;
     internal const uint InputKeyboard = 1;
 
+    [DllImport("imm32.dll")] internal static extern IntPtr ImmAssociateContext(IntPtr hWnd, IntPtr hIMC);
     [DllImport("user32.dll")] internal static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] internal static extern bool SetForegroundWindow(IntPtr hWnd);
     [DllImport("user32.dll")] internal static extern bool IsIconic(IntPtr hWnd);
@@ -20,9 +21,17 @@ internal static class NativeMethods
     [DllImport("user32.dll")] internal static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
     [DllImport("user32.dll")] internal static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
     [DllImport("kernel32.dll")] internal static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll")] internal static extern bool GetCursorPos(out POINT point);
     [DllImport("user32.dll", SetLastError = true)] internal static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
     [DllImport("user32.dll", SetLastError = true)] internal static extern bool UnregisterHotKey(IntPtr hWnd, int id);
     [DllImport("user32.dll", SetLastError = true)] internal static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct POINT
+    {
+        internal int X;
+        internal int Y;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct INPUT

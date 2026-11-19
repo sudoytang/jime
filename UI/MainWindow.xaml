@@ -1,0 +1,58 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:Jime"
+        x:Class="Jime.MainWindow"
+        SystemDecorations="None" Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        Topmost="True" ShowInTaskbar="False" CanResize="False"
+        Width="460" SizeToContent="Height" FontFamily="Yu Gothic UI, Segoe UI"
+        KeyDown="OnKeyDown" PointerPressed="OnDrag">
+    <Border CornerRadius="12" Background="#F71D2027" BorderBrush="#3DFFFFFF"
+            BorderThickness="1" Padding="16,12" BoxShadow="0 0 24 #80000000">
+        <StackPanel>
+            <Grid Margin="2,0,2,8">
+                <TextBlock Text="JIME · 日语输入" Foreground="#91FFFFFF" FontSize="11"/>
+                <TextBlock Text="Ctrl + Alt + J" Foreground="#66FFFFFF" FontSize="11"
+                           HorizontalAlignment="Right"/>
+            </Grid>
+            <Border Background="#18FFFFFF" CornerRadius="7" Padding="12,8" PointerPressed="OnCompositionClick">
+                <local:CompositionView x:Name="InputView" MinHeight="34" FontSize="23"
+                                       Foreground="White"/>
+            </Border>
+            <TextBlock x:Name="ReadingText" Margin="4,7,4,2" Foreground="#72FFFFFF"
+                       FontSize="12" Text="输入罗马字，例如：ohayou"/>
+            <ListBox x:Name="Candidates" BorderThickness="0" Background="Transparent"
+                     Foreground="White" FontSize="18" MaxHeight="260"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                     SelectionChanged="OnSelectionChanged" DoubleTapped="OnCandidateDoubleClick">
+                <ListBox.Styles>
+                    <Style Selector="TextBlock">
+                        <Setter Property="TextWrapping" Value="Wrap"/>
+                    </Style>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="10,5"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="Template">
+                            <ControlTemplate>
+                                <Border x:Name="Row" Background="Transparent" CornerRadius="5"
+                                        Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter Content="{TemplateBinding Content}"
+                                                      ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Setter>
+                    </Style>
+                    <Style Selector="ListBoxItem:selected /template/ Border#Row">
+                        <Setter Property="Background" Value="#FF3867D6"/>
+                    </Style>
+                    <Style Selector="ListBoxItem:pointerover /template/ Border#Row">
+                        <Setter Property="Background" Value="#20FFFFFF"/>
+                    </Style>
+                </ListBox.Styles>
+            </ListBox>
+            <TextBlock Margin="4,9,4,0" Foreground="#70FFFFFF" FontSize="11" TextWrapping="Wrap"
+                       Text="Space 确认候选 · 1–9 选择 · -/=、PgUp/PgDn 翻页 · Alt + -/= 输入原始 -/= · Alt+Enter 平假名 · Ctrl+Enter 片假名 · Enter 保留英文/输入 · Esc 取消"/>
+        </StackPanel>
+    </Border>
+</Window>

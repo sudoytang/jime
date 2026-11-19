@@ -1,8 +1,8 @@
-using System.ComponentModel;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Documents;
-using System.Windows.Input;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using KeyEventArgs = Avalonia.Input.KeyEventArgs;
+using Size = Avalonia.Size;
 
 namespace Jime;
 
@@ -17,11 +17,6 @@ public partial class MainWindow : Window
     private string _rawInput = "";
     private int _rawCaret;
     private IReadOnlyList<string> _romanSegments = Array.Empty<string>();
-    private readonly FlowDocument _viewDocument;
-    private readonly Paragraph _viewParagraph;
-    private readonly Run _prefixRun = new();
-    private readonly Run _rawRun = new() { TextDecorations = TextDecorations.Underline };
-    private readonly Run _suffixRun = new();
     private readonly List<CandidateItem[]> _pages = new();
     private int _page;
     private int _conversionVersion;
@@ -33,21 +28,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        _viewDocument = new FlowDocument
-        {
-            PagePadding = new Thickness(0),
-            FontFamily = InputView.FontFamily,
-            FontSize = InputView.FontSize,
-            Foreground = System.Windows.Media.Brushes.White
-        };
-        _viewParagraph = new Paragraph { Margin = new Thickness(0), TextIndent = 0 };
-        _viewParagraph.Inlines.Add(_prefixRun);
-        _viewParagraph.Inlines.Add(_rawRun);
-        _viewParagraph.Inlines.Add(_suffixRun);
-        _viewDocument.Blocks.Add(_viewParagraph);
-        InputView.Document = _viewDocument;
         Loaded += (_, _) => UpdateComposition();
-        InputView.Focus();
         UpdateComposition();
     }
 
@@ -60,48 +41,61 @@ public partial class MainWindow : Window
         _romanSegments = Array.Empty<string>();
         _conversionVersion++;
         ReadingText.Text = "输入罗马字，例如：ohayou";
-        Candidates.Visibility = Visibility.Collapsed;
+        Candidates.IsVisible = false;
         UpdateComposition();
         ShowCentered();
         Activate();
-        InputView.Focus();
+        Focus();
     }
 
     private void ShowCentered()
     {
-        var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(this);
         UpdateLayout();
-        var width = (ActualWidth > 0 ? ActualWidth : Width) * dpi.DpiScaleX;
-        var height = (ActualHeight > 0 ? ActualHeight : MinHeight) * dpi.DpiScaleY;
-        if (_rememberedPosition is { } remembered && IsOnScreen(remembered, width, height, dpi))
+        NativeMethods.GetCursorPos(out var cursor);
+        var screen = Screens.ScreenFromPoint(new PixelPoint(cursor.X, cursor.Y)) ?? Screens.Primary;
+        if (screen == null)
         {
-            Left = remembered.Left;
-            Top = remembered.Top;
+            Show();
+            return;
+        }
+        var scaling = screen.Scaling;
+        var width = (Bounds.Width > 0 ? Bounds.Width : Width) * scaling;
+        var height = (Bounds.Height > 0 ? Bounds.Height : MinHeight) * scaling;
+        if (_rememberedPosition is { } remembered && IsOnScreen(remembered, width, height))
+        {
+            Position = new PixelPoint((int)remembered.Left, (int)remembered.Top);
         }
         else
         {
-            var screen = System.Windows.Forms.Screen.FromPoint(System.Windows.Forms.Cursor.Position);
             var area = screen.WorkingArea;
-            Left = (area.Left + (area.Width - width) / 2) / dpi.DpiScaleX;
-            Top = (area.Top + (area.Height - height) / 2) / dpi.DpiScaleY;
+            Position = new PixelPoint(
+                (int)(area.X + (area.Width - width) / 2),
+                (int)(area.Y + (area.Height - height) / 2));
         }
         Show();
     }
 
-    private static bool IsOnScreen(WindowPosition position, double width, double height,
-        System.Windows.DpiScale dpi)
+    private bool IsOnScreen(WindowPosition position, double width, double height)
     {
-        var screen = System.Windows.Forms.SystemInformation.VirtualScreen;
-        var left = position.Left * dpi.DpiScaleX;
-        var top = position.Top * dpi.DpiScaleY;
-        return left + width >= screen.Left && left <= screen.Right
-            && top + height >= screen.Top && top <= screen.Bottom;
+        var left = position.Left;
+        var top = position.Top;
+        return Screens.All.Any(screen =>
+            left + width >= screen.Bounds.X && left <= screen.Bounds.Right
+            && top + height >= screen.Bounds.Y && top <= screen.Bounds.Bottom);
+    }
+
+    protected override void OnTextInput(TextInputEventArgs e)
+    {
+        base.OnTextInput(e);
+        if (string.IsNullOrEmpty(e.Text)) return;
+        foreach (var character in e.Text) TryInsertCharacter(character);
+        e.Handled = true;
     }
 
     internal bool TryInsertCharacter(char character)
     {
         if (char.IsControl(character)) return false;
-        if (character == ' ' && Candidates.Visibility == Visibility.Visible) return true;
+        if (character == ' ' && Candidates.IsVisible) return true;
         _rawInput = _rawInput.Insert(_rawCaret, character.ToString());
         _rawCaret++;
         ApplyRawEdit();
@@ -112,7 +106,7 @@ public partial class MainWindow : Window
     {
         var version = ++_conversionVersion;
         _page = 0;
-        Candidates.Visibility = _rawInput.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        Candidates.IsVisible = _rawInput.Length != 0;
         ReadingText.Text = _rawInput.Length == 0
             ? _confirmed.Length == 0 ? "输入罗马字，例如：ohayou" : "继续输入，或按 Enter 完成"
             : $"读音：{RomajiConverter.ToHiragana(_rawInput)}";
@@ -138,23 +132,23 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    private void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        var key = e.Key == Key.System ? e.SystemKey : e.Key;
-        if (Candidates.Visibility == Visibility.Visible && TrySelectNumber(key))
+        var key = e.Key;
+        if (Candidates.IsVisible && TrySelectNumber(key))
         {
             e.Handled = true;
             return;
         }
 
-        if (Keyboard.Modifiers == ModifierKeys.Alt && key is Key.OemMinus or Key.OemPlus)
+        if (e.KeyModifiers == KeyModifiers.Alt && key is Key.OemMinus or Key.OemPlus)
         {
             InsertText(key == Key.OemMinus ? "-" : "=");
             e.Handled = true;
             return;
         }
 
-        if (Keyboard.Modifiers == (ModifierKeys.Alt | ModifierKeys.Shift)
+        if (e.KeyModifiers == (KeyModifiers.Alt | KeyModifiers.Shift)
             && key is Key.OemMinus or Key.OemPlus)
         {
             InsertText(key == Key.OemMinus ? "_" : "+");
@@ -162,7 +156,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control)
             && key is Key.A or Key.C or Key.X or Key.V or Key.Z or Key.Y)
         {
             e.Handled = true;
@@ -171,16 +165,16 @@ public partial class MainWindow : Window
 
         switch (key)
         {
-            case Key.Enter when Keyboard.Modifiers == ModifierKeys.Alt:
+            case Key.Enter when e.KeyModifiers == KeyModifiers.Alt:
                 ConfirmText(RomajiConverter.ToHiragana(RawInputText));
                 e.Handled = true;
                 break;
-            case Key.Enter when Keyboard.Modifiers == ModifierKeys.Control:
+            case Key.Enter when e.KeyModifiers == KeyModifiers.Control:
                 ConfirmText(RomajiConverter.ToKatakana(RomajiConverter.ToHiragana(RawInputText)));
                 e.Handled = true;
                 break;
             case Key.Enter:
-                if (Candidates.Visibility == Visibility.Visible) ConfirmText(RawInputText);
+                if (Candidates.IsVisible) ConfirmText(RawInputText);
                 else Commit();
                 e.Handled = true;
                 break;
@@ -227,26 +221,14 @@ public partial class MainWindow : Window
                 e.Handled = true;
                 break;
             case Key.Left:
-                if (_rawInput.Length > 0)
-                {
-                    _rawCaret = PreviousTextElementStart(_rawInput, _rawCaret);
-                }
-                else
-                {
-                    _confirmedCaret = PreviousTextElementStart(_confirmed, _confirmedCaret);
-                }
+                if (_rawInput.Length > 0) _rawCaret = PreviousTextElementStart(_rawInput, _rawCaret);
+                else _confirmedCaret = PreviousTextElementStart(_confirmed, _confirmedCaret);
                 SyncView();
                 e.Handled = true;
                 break;
             case Key.Right:
-                if (_rawInput.Length > 0)
-                {
-                    _rawCaret = NextTextElementEnd(_rawInput, _rawCaret);
-                }
-                else
-                {
-                    _confirmedCaret = NextTextElementEnd(_confirmed, _confirmedCaret);
-                }
+                if (_rawInput.Length > 0) _rawCaret = NextTextElementEnd(_rawInput, _rawCaret);
+                else _confirmedCaret = NextTextElementEnd(_confirmed, _confirmedCaret);
                 SyncView();
                 e.Handled = true;
                 break;
@@ -262,26 +244,24 @@ public partial class MainWindow : Window
                 SyncView();
                 e.Handled = true;
                 break;
-            case Key.Space when Candidates.Visibility == Visibility.Visible:
+            case Key.Space when Candidates.IsVisible:
                 ConfirmCandidate();
                 e.Handled = true;
                 break;
-            case Key.OemMinus when Candidates.Visibility == Visibility.Visible
-                && Keyboard.Modifiers == ModifierKeys.None:
+            case Key.OemMinus when Candidates.IsVisible && e.KeyModifiers == KeyModifiers.None:
                 if (_page == 0) InsertText("-");
                 else ChangePage(-1);
                 e.Handled = true;
                 break;
-            case Key.OemPlus when Candidates.Visibility == Visibility.Visible
-                && Keyboard.Modifiers == ModifierKeys.None:
+            case Key.OemPlus when Candidates.IsVisible && e.KeyModifiers == KeyModifiers.None:
                 if (_pages.Count > 0 && _page < _pages.Count - 1) ChangePage(1);
                 e.Handled = true;
                 break;
-            case Key.PageUp when Candidates.Visibility == Visibility.Visible:
+            case Key.PageUp when Candidates.IsVisible:
                 ChangePage(-1);
                 e.Handled = true;
                 break;
-            case Key.PageDown when Candidates.Visibility == Visibility.Visible:
+            case Key.PageDown when Candidates.IsVisible:
                 ChangePage(1);
                 e.Handled = true;
                 break;
@@ -309,7 +289,7 @@ public partial class MainWindow : Window
         _rawInput = _rawInput.Insert(_rawCaret, text);
         _rawCaret += text.Length;
         ApplyRawEdit();
-        InputView.Focus();
+        Focus();
     }
 
     private bool TrySelectNumber(Key key)
@@ -331,7 +311,7 @@ public partial class MainWindow : Window
         _pages.Clear();
         var page = new List<CandidateItem>();
         var height = 0.0;
-        var width = Candidates.ActualWidth > 0 ? Candidates.ActualWidth - 20 : 400;
+        var width = Candidates.Bounds.Width > 0 ? Candidates.Bounds.Width - 20 : 400;
         for (var index = 0; index < conversion.Candidates.Count; index++)
         {
             var value = conversion.Candidates[index];
@@ -344,9 +324,9 @@ public partial class MainWindow : Window
                 Text = item.Display,
                 FontFamily = Candidates.FontFamily,
                 FontSize = Candidates.FontSize,
-                TextWrapping = TextWrapping.Wrap
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap
             };
-            textBlock.Measure(new System.Windows.Size(width, double.PositiveInfinity));
+            textBlock.Measure(new Size(width, double.PositiveInfinity));
             var itemHeight = textBlock.DesiredSize.Height + 10;
             if (page.Count > 0 && (page.Count == MaxPageSize || height + itemHeight > MaxCandidatesHeight))
             {
@@ -355,7 +335,7 @@ public partial class MainWindow : Window
                 height = 0;
                 item = new CandidateItem($"{page.Count + 1}  {display}", value);
                 textBlock.Text = item.Display;
-                textBlock.Measure(new System.Windows.Size(width, double.PositiveInfinity));
+                textBlock.Measure(new Size(width, double.PositiveInfinity));
                 itemHeight = textBlock.DesiredSize.Height + 10;
             }
             page.Add(item);
@@ -393,10 +373,10 @@ public partial class MainWindow : Window
         _romanSegments = Array.Empty<string>();
         _conversionVersion++;
         _page = 0;
-        Candidates.Visibility = Visibility.Collapsed;
+        Candidates.IsVisible = false;
         ReadingText.Text = _confirmed.Length == 0 ? "输入罗马字，例如：ohayou" : "继续输入，或按 Enter 完成";
         UpdateComposition();
-        InputView.Focus();
+        Focus();
     }
 
     private void Commit()
@@ -412,7 +392,7 @@ public partial class MainWindow : Window
         _conversionVersion++;
         _page = 0;
         _romanSegments = Array.Empty<string>();
-        Candidates.Visibility = Visibility.Collapsed;
+        Candidates.IsVisible = false;
         ReadingText.Text = _confirmed.Length == 0 ? "输入罗马字，例如：ohayou" : "继续输入，或按 Enter 完成";
         UpdateComposition();
     }
@@ -421,56 +401,30 @@ public partial class MainWindow : Window
     {
         if (_confirmed.Length == 0 && _rawInput.Length == 0)
         {
-            _prefixRun.Foreground = System.Windows.Media.Brushes.Gray;
-            SetRunText(_prefixRun, "罗马字");
-            SetRunText(_rawRun, "");
-            SetRunText(_suffixRun, "");
-            InputView.CaretPosition = _prefixRun.ContentStart;
+            InputView.Prefix = "";
+            InputView.Raw = "";
+            InputView.Suffix = "";
+            InputView.CaretOffset = 0;
             return;
         }
 
-        _prefixRun.Foreground = System.Windows.Media.Brushes.White;
         if (_rawInput.Length > 0)
         {
-            SetRunText(_prefixRun, _confirmed[.._confirmedCaret]);
-            SetRunText(_rawRun, BuildDisplayText());
-            SetRunText(_suffixRun, _confirmed[_confirmedCaret..]);
+            InputView.Prefix = _confirmed[.._confirmedCaret];
+            InputView.Raw = BuildDisplayText();
+            InputView.Suffix = _confirmed[_confirmedCaret..];
+            InputView.CaretOffset = InputView.Prefix.Length + GetDisplayCaretIndex(_rawCaret);
         }
         else
         {
-            SetRunText(_prefixRun, _confirmed);
-            SetRunText(_rawRun, "");
-            SetRunText(_suffixRun, "");
+            InputView.Prefix = _confirmed;
+            InputView.Raw = "";
+            InputView.Suffix = "";
+            InputView.CaretOffset = _confirmedCaret;
         }
-        UpdateCaretPosition();
     }
 
-    private static void SetRunText(Run run, string text)
-    {
-        if (run.Text != text) run.Text = text;
-    }
-
-    private void UpdateCaretPosition()
-    {
-        if (_confirmed.Length == 0 && _rawInput.Length == 0)
-        {
-            InputView.CaretPosition = _prefixRun.ContentStart;
-            return;
-        }
-        if (_rawInput.Length > 0)
-        {
-            var displayCaret = GetDisplayCaretIndex(_rawCaret);
-            InputView.CaretPosition =
-                _rawRun.ContentStart.GetPositionAtOffset(displayCaret, LogicalDirection.Forward)
-                ?? _rawRun.ContentEnd;
-            return;
-        }
-        var caret = _prefixRun.ContentStart.GetPositionAtOffset(
-            Math.Clamp(_confirmedCaret, 0, _confirmed.Length), LogicalDirection.Forward);
-        InputView.CaretPosition = caret ?? _prefixRun.ContentEnd;
-    }
-
-    private void SyncView() => UpdateCaretPosition();
+    private void SyncView() => UpdateComposition();
 
     private string BuildDisplayText()
     {
@@ -520,28 +474,34 @@ public partial class MainWindow : Window
         return text.Length;
     }
 
-    private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (Candidates.SelectedItem != null) Candidates.ScrollIntoView(Candidates.SelectedItem);
     }
 
-    private void OnCandidateDoubleClick(object sender, MouseButtonEventArgs e) => ConfirmCandidate();
+    private void OnCandidateDoubleClick(object? sender, TappedEventArgs e) => ConfirmCandidate();
 
-    private void OnCompositionClick(object sender, MouseButtonEventArgs e)
+    private void OnCompositionClick(object? sender, PointerPressedEventArgs e)
     {
-        InputView.Focus();
+        Focus();
         e.Handled = true;
     }
 
-    private void OnDrag(object sender, MouseButtonEventArgs e)
+    private void OnDrag(object? sender, PointerPressedEventArgs e)
     {
-        if (e.ChangedButton != MouseButton.Left || e.OriginalSource is System.Windows.Controls.RichTextBox) return;
-        DragMove();
-        _rememberedPosition = new WindowPosition(Left, Top);
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || e.Source is CompositionView) return;
+        BeginMoveDrag(e);
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        if (e.InitialPressMouseButton != MouseButton.Left) return;
+        _rememberedPosition = new WindowPosition(Position.X, Position.Y);
         PositionSettings.Save(_rememberedPosition);
     }
 
-    protected override void OnClosing(CancelEventArgs e)
+    protected override void OnClosing(WindowClosingEventArgs e)
     {
         e.Cancel = true;
         Hide();

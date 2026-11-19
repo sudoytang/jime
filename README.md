@@ -1,6 +1,6 @@
 # Jime
 
-一个驻留托盘的 Windows 日语输入小工具，不安装或启用系统输入法。输入罗马字后使用随附的 Mozc 引擎生成假名、汉字和候选，最后把结果注入当前窗口。
+一个使用 Avalonia UI 的驻留托盘 Windows 日语输入小工具，不安装或启用系统输入法。输入罗马字后使用随附的 Mozc 引擎生成假名、汉字和候选，最后把结果注入当前窗口。
 
 ## 使用
 
@@ -91,13 +91,15 @@ git -C third_party/mozc apply ../../patches/mozc-server-allow-elevated.patch
 
 ## 项目结构
 
-- `MainWindow.xaml.cs`：窗口、输入状态机、候选与光标
-- `MozcConverter.cs`：Mozc named-pipe IPC
-- `RomajiConverter.cs`：罗马字到假名
-- `TextInjector.cs`：剪贴板注入
-- `PositionSettings.cs`：窗口位置持久化
+- `App/`：Avalonia 应用入口、生命周期、全局热键与托盘
+- `UI/`：输入窗口、输入状态机、候选列表与组合文本绘制
+- `Core/`：Mozc named-pipe IPC 与罗马字转换
+- `Platform/Windows/`：Win32 API 与剪贴板文本注入
+- `Settings/`：窗口位置持久化
+- `Properties/`：Windows 应用清单
 - `Jime.Cli/`：转换引擎命令行测试工具
 - `Protos/`：Mozc protobuf 协议
+- `native/mozc/`：Mozc Windows 原生参考源码
 - `third_party/runtime/`：最小 Mozc 运行引擎
 
 ## License

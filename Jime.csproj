@@ -4,10 +4,8 @@
     <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Resources\tray.ico</ApplicationIcon>
+    <ApplicationManifest>Properties/app.manifest</ApplicationManifest>
     <AssemblyName>Jime</AssemblyName>
     <RootNamespace>Jime</RootNamespace>
     <EnableDefaultNoneItems>false</EnableDefaultNoneItems>
@@ -15,8 +13,13 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="third_party/**/*.cs;Jime.Cli/**/*.cs" />
+    <AvaloniaXaml Include="App/App.xaml;UI/MainWindow.xaml" />
+    <AvaloniaResource Include="Resources/**" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.23" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.23" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.23" />
     <PackageReference Include="Google.Protobuf" Version="3.32.0" />
     <PackageReference Include="Grpc.Tools" Version="2.71.0" PrivateAssets="All" />
   </ItemGroup>

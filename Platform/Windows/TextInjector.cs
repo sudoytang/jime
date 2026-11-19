@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using Clipboard = System.Windows.Clipboard;
+using Clipboard = System.Windows.Forms.Clipboard;
 
 namespace Jime;
 
