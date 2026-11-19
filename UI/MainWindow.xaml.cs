@@ -10,13 +10,12 @@ public partial class MainWindow : Window
 {
     private const int MaxPageSize = 9;
     private const double MaxCandidatesHeight = 260;
-    private const string SegmentSeparator = "ʼ";
     private static WindowPosition? _rememberedPosition = PositionSettings.Load();
     private string _confirmed = "";
     private int _confirmedCaret;
     private string _rawInput = "";
     private int _rawCaret;
-    private IReadOnlyList<string> _romanSegments = Array.Empty<string>();
+    private MozcConversion? _currentConversion;
     private readonly List<CandidateItem[]> _pages = new();
     private int _page;
     private int _conversionVersion;
@@ -38,7 +37,7 @@ public partial class MainWindow : Window
         _confirmedCaret = 0;
         _rawInput = "";
         _rawCaret = 0;
-        _romanSegments = Array.Empty<string>();
+        _currentConversion = null;
         _conversionVersion++;
         ReadingText.Text = "输入罗马字，例如：ohayou";
         Candidates.IsVisible = false;
@@ -109,8 +108,8 @@ public partial class MainWindow : Window
         Candidates.IsVisible = _rawInput.Length != 0;
         ReadingText.Text = _rawInput.Length == 0
             ? _confirmed.Length == 0 ? "输入罗马字，例如：ohayou" : "继续输入，或按 Enter 完成"
-            : $"读音：{RomajiConverter.ToHiragana(_rawInput)}";
-        _romanSegments = _rawInput.Length == 0 ? Array.Empty<string>() : [_rawInput];
+            : $"输入：{_rawInput}";
+        _currentConversion = null;
         UpdateComposition();
         if (_rawInput.Length > 0) _ = ConvertAsync(_rawInput, version);
     }
@@ -121,7 +120,8 @@ public partial class MainWindow : Window
         {
             var conversion = await _mozc.GetConversionAsync(romaji);
             if (version != _conversionVersion || _rawInput != romaji) return;
-            _romanSegments = RomajiConverter.SplitByKanaSegments(romaji, conversion.SegmentReadings);
+            _currentConversion = conversion;
+            ReadingText.Text = $"读音：{conversion.Reading}";
             BuildPages(conversion);
             ShowPage();
             UpdateComposition();
@@ -166,15 +166,15 @@ public partial class MainWindow : Window
         switch (key)
         {
             case Key.Enter when e.KeyModifiers == KeyModifiers.Alt:
-                ConfirmText(RomajiConverter.ToHiragana(RawInputText));
+                ConfirmReading();
                 e.Handled = true;
                 break;
             case Key.Enter when e.KeyModifiers == KeyModifiers.Control:
-                ConfirmText(RomajiConverter.ToKatakana(RomajiConverter.ToHiragana(RawInputText)));
+                ConfirmKatakana();
                 e.Handled = true;
                 break;
             case Key.Enter:
-                if (Candidates.IsVisible) ConfirmText(RawInputText);
+                if (Candidates.IsVisible) ConfirmText(_rawInput);
                 else Commit();
                 e.Handled = true;
                 break;
@@ -274,11 +274,11 @@ public partial class MainWindow : Window
                 e.Handled = true;
                 break;
             case Key.F6:
-                ConfirmText(RomajiConverter.ToHiragana(RawInputText));
+                ConfirmReading();
                 e.Handled = true;
                 break;
             case Key.F7:
-                ConfirmText(RomajiConverter.ToKatakana(RomajiConverter.ToHiragana(RawInputText)));
+                ConfirmKatakana();
                 e.Handled = true;
                 break;
         }
@@ -358,6 +358,18 @@ public partial class MainWindow : Window
         ShowPage();
     }
 
+    private void ConfirmReading()
+    {
+        if (_rawInput.Length > 0 && _currentConversion?.Reading.Length > 0)
+            ConfirmText(_currentConversion.Reading);
+    }
+
+    private void ConfirmKatakana()
+    {
+        if (_rawInput.Length > 0 && _currentConversion?.Katakana.Length > 0)
+            ConfirmText(_currentConversion.Katakana);
+    }
+
     private void ConfirmCandidate()
     {
         if (Candidates.SelectedItem is not CandidateItem item) return;
@@ -370,7 +382,7 @@ public partial class MainWindow : Window
         _confirmedCaret += text.Length;
         _rawInput = "";
         _rawCaret = 0;
-        _romanSegments = Array.Empty<string>();
+        _currentConversion = null;
         _conversionVersion++;
         _page = 0;
         Candidates.IsVisible = false;
@@ -385,13 +397,11 @@ public partial class MainWindow : Window
         else CancelRequested?.Invoke();
     }
 
-    private string RawInputText => _rawInput;
-
     private void RefreshConfirmedEdit()
     {
         _conversionVersion++;
         _page = 0;
-        _romanSegments = Array.Empty<string>();
+        _currentConversion = null;
         Candidates.IsVisible = false;
         ReadingText.Text = _confirmed.Length == 0 ? "输入罗马字，例如：ohayou" : "继续输入，或按 Enter 完成";
         UpdateComposition();
@@ -411,9 +421,9 @@ public partial class MainWindow : Window
         if (_rawInput.Length > 0)
         {
             InputView.Prefix = _confirmed[.._confirmedCaret];
-            InputView.Raw = BuildDisplayText();
+            InputView.Raw = _rawInput;
             InputView.Suffix = _confirmed[_confirmedCaret..];
-            InputView.CaretOffset = InputView.Prefix.Length + GetDisplayCaretIndex(_rawCaret);
+            InputView.CaretOffset = InputView.Prefix.Length + _rawCaret;
         }
         else
         {
@@ -425,30 +435,6 @@ public partial class MainWindow : Window
     }
 
     private void SyncView() => UpdateComposition();
-
-    private string BuildDisplayText()
-    {
-        if (_romanSegments.Count > 1 && string.Concat(_romanSegments) == _rawInput)
-            return string.Join(SegmentSeparator, _romanSegments);
-        return _rawInput;
-    }
-
-    private int GetDisplayCaretIndex(int caret)
-    {
-        var remaining = Math.Clamp(caret, 0, _rawInput.Length);
-        if (_romanSegments.Count <= 1 || string.Concat(_romanSegments) != _rawInput)
-            return remaining;
-        var display = 0;
-        for (var index = 0; index < _romanSegments.Count && remaining > 0; index++)
-        {
-            var segment = _romanSegments[index];
-            var take = Math.Min(remaining, segment.Length);
-            display += take;
-            remaining -= take;
-            if (remaining > 0 && index < _romanSegments.Count - 1) display++;
-        }
-        return display;
-    }
 
     private static int PreviousTextElementStart(string text, int position)
     {

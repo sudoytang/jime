@@ -9,9 +9,10 @@ foreach (var romaji in inputs)
 {
     Console.WriteLine($"{romaji}:");
     var conversion = await converter.GetConversionAsync(romaji);
+    Console.WriteLine($"Reading: {conversion.Reading}");
+    Console.WriteLine($"Katakana: {conversion.Katakana}");
     Console.WriteLine($"Segments: {string.Join(" | ", conversion.SegmentReadings)}");
     Console.WriteLine($"Values: {string.Join(" | ", conversion.SegmentValues)}");
-    Console.WriteLine($"Romaji: {string.Join("'", RomajiConverter.SplitByKanaSegments(romaji, conversion.SegmentReadings))}");
     for (var i = 0; i < conversion.Candidates.Count; i++)
         Console.WriteLine($"{i + 1}. {conversion.Candidates[i]}");
     if (!restartTest) continue;

@@ -72,15 +72,22 @@ public sealed class MozcConverter
             : output.AllCandidateWords?.Candidates.Select(c => c.Value).ToList()
                 ?? output.CandidateWindow?.Candidate.Select(c => c.Value).ToList()
                 ?? new List<string>();
-        var hiragana = RomajiConverter.ToHiragana(romaji);
-        if (candidates.Count == 0) candidates.Add(hiragana);
-        var katakana = RomajiConverter.ToKatakana(hiragana);
-        if (!candidates.Contains(katakana)) candidates.Add(katakana);
+        var reading = segments is { Count: > 0 }
+            ? string.Concat(segments.Select(s => s.Key))
+            : output.Preedit?.Segment.FirstOrDefault()?.Key ?? "";
+        if (candidates.Count == 0 && reading.Length > 0) candidates.Add(reading);
+        var distinctCandidates = candidates.Distinct().ToArray();
+        var katakana = distinctCandidates.FirstOrDefault(IsKatakana) ?? "";
         return new MozcConversion(
-            candidates.Distinct().ToArray(),
+            distinctCandidates,
+            reading,
+            katakana,
             segments?.Select(s => s.Key).ToArray() ?? Array.Empty<string>(),
             segments?.Select(s => s.Value).ToArray() ?? Array.Empty<string>());
     }
+
+    private static bool IsKatakana(string value) =>
+        value.Length > 0 && value.All(c => c is >= 'ァ' and <= 'ヺ' or 'ー' or '・' or ' ');
 
     private void EnsureServer()
     {
@@ -148,8 +155,10 @@ public sealed class MozcConverter
 
 public sealed record MozcConversion(
     IReadOnlyList<string> Candidates,
+    string Reading,
+    string Katakana,
     IReadOnlyList<string> SegmentReadings,
     IReadOnlyList<string> SegmentValues)
 {
-    public static readonly MozcConversion Empty = new([], [], []);
+    public static readonly MozcConversion Empty = new([], "", "", [], []);
 }

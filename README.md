@@ -81,19 +81,13 @@ ochitsuiteiru:
 git submodule update --init third_party/mozc
 ```
 
-本地构建补丁位于 `patches/`。其中的 `mozc-server-allow-elevated.patch` 删除 4 行高权限启动保护，用于在管理员终端环境中启动 Mozc server：
-
-```bash
-git -C third_party/mozc apply ../../patches/mozc-server-allow-elevated.patch
-```
-
-只有自行编译 `mozc_server.exe` 时才需要 submodule 和补丁；运行已随附引擎不需要这些步骤。
+只有自行编译 `mozc_server.exe` 时才需要 submodule；运行已随附引擎不需要这个步骤。
 
 ## 项目结构
 
 - `App/`：Avalonia 应用入口、生命周期、全局热键与托盘
 - `UI/`：输入窗口、输入状态机、候选列表与组合文本绘制
-- `Core/`：Mozc named-pipe IPC 与罗马字转换
+- `Core/`：Mozc named-pipe IPC 与转换结果整理
 - `Platform/Windows/`：Win32 API 与剪贴板文本注入
 - `Settings/`：窗口位置持久化
 - `Properties/`：Windows 应用清单
