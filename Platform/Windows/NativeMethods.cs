@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Jime;
+namespace Jime.Platform.Windows;
 
 internal static class NativeMethods
 {

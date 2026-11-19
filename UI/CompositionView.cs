@@ -7,7 +7,7 @@ using FlowDirection = Avalonia.Media.FlowDirection;
 using Pen = Avalonia.Media.Pen;
 using Point = Avalonia.Point;
 
-namespace Jime;
+namespace Jime.UI;
 
 public sealed class CompositionView : TemplatedControl
 {

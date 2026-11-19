@@ -5,10 +5,12 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Platform;
+using Jime.Platform.Windows;
+using Jime.UI;
 using Application = Avalonia.Application;
 using Button = Avalonia.Controls.Button;
 
-namespace Jime;
+namespace Jime.App;
 
 public partial class App : Application
 {

@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Jime;
+using Jime.Core;
 
 var restartTest = args.Contains("--restart-test");
 var inputs = args.Where(arg => arg != "--restart-test").ToArray();

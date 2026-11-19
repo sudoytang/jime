@@ -1,10 +1,13 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Jime.Core;
+using Jime.Platform.Windows;
+using Jime.Settings;
 using KeyEventArgs = Avalonia.Input.KeyEventArgs;
 using Size = Avalonia.Size;
 
-namespace Jime;
+namespace Jime.UI;
 
 public partial class MainWindow : Window
 {

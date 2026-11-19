@@ -1,7 +1,7 @@
 using System.IO;
 using System.Text.Json;
 
-namespace Jime;
+namespace Jime.Settings;
 
 internal static class PositionSettings
 {

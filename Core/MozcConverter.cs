@@ -6,7 +6,7 @@ using System.Security.Principal;
 using Google.Protobuf;
 using Mozc.Commands;
 
-namespace Jime;
+namespace Jime.Core;
 
 public sealed class MozcConverter
 {

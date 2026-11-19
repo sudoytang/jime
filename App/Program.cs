@@ -1,6 +1,6 @@
 using Avalonia;
 
-namespace Jime;
+namespace Jime.App;
 
 internal static class Program
 {

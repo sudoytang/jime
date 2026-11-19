@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Clipboard = System.Windows.Forms.Clipboard;
 
-namespace Jime;
+namespace Jime.Platform.Windows;
 
 internal static class TextInjector
 {
